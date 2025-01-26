@@ -5,9 +5,9 @@
 
 #include <time.h>
 
-int n = 128;
-int n0 = 128;
-int m = 100;
+int n = 10000000;
+int n0 = 400;
+int m;
 int M = 2048;
 double *a;
 int *a1;
@@ -26,7 +26,7 @@ void calculate_floats(void) {
     for (int i = 0; i < n; i++) {
         res += a[i];
     }
-    time_spent_usual = (clock() - begin) ;
+    time_spent_usual = (clock() - begin);
 }
 
 void calculate_ints(void) {
@@ -42,7 +42,7 @@ void calculate_ints(void) {
         S += temp[i];
     }
     res2 = (double) S / (double) M;
-    time_spent_optimized = (clock() - begin) ;
+    time_spent_optimized = (clock() - begin);
 }
 
 void generateData() {
@@ -66,35 +66,24 @@ void generateData() {
 }
 
 int main(void) {
+    m = n / n0;
     long long seed = time(NULL);
     printf("seed: %lld\n", seed);
 
     srand(seed);
 
-    for (int i = 100; i < 1000000000; i *= 10) {
-        n = i;
-        for (int j = 64; j < n; j *= 2) {
-            M = j;
-            for (int k = 1; k <= n / M; k *= 2) {
-                n0 = k;
-                m = n / n0;
-                generateData(n);
-                calculate_floats();
-                calculate_ints();
 
-                free(a);
-                free(a1);
-                free(temp);
-                printf("n=%d n0=%d  M=%d\n", n, n0, M);
-                printf("for usual time = %lld\n",time_spent_usual);
-                printf("for optimized time = %lld\n",time_spent_optimized);
-                printf("\n");
-            }
+    generateData(n);
+    calculate_floats();
+    calculate_ints();
 
-
-
-        }
-    }
+    free(a);
+    free(a1);
+    free(temp);
+    printf("n=%d n0=%d  M=%d\n", n, n0, M);
+    printf("for usual time = %f\n", time_spent_usual / (double) CLOCKS_PER_SEC);
+    printf("for optimized time = %f\n", time_spent_optimized / (double) CLOCKS_PER_SEC);
+    printf("\n");
 
 
     return 0;
