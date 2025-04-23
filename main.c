@@ -151,44 +151,106 @@ void print_errors(void) {
     printf("Relative Error2: %f norm: %f\n", relativeError2, norm2);
 }
 
-int main(void) {
-    a = (double *) malloc(sizeof(double) * n1);
-    a_int = (unsigned short *) malloc(sizeof(unsigned short) * n1);
-    b = (double *) malloc(sizeof(double) * n2);
-    b_int = (unsigned short *) malloc(sizeof(unsigned short) * n2);
-    c_int = (unsigned int *) malloc(sizeof(unsigned int) * (n1 + n2));
-    res = (double *) malloc(sizeof(double) * (n1 + n2));
-    res2 = (double *) malloc(sizeof(double) * (n1 + n2));
+// int main(void) {
+//     a = (double *) malloc(sizeof(double) * n1);
+//     a_int = (unsigned short *) malloc(sizeof(unsigned short) * n1);w
+//     b = (double *) malloc(sizeof(double) * n2);
+//     b_int = (unsigned short *) malloc(sizeof(unsigned short) * n2);
+//     c_int = (unsigned int *) malloc(sizeof(unsigned int) * (n1 + n2));
+//     res = (double *) malloc(sizeof(double) * (n1 + n2));
+//     res2 = (double *) malloc(sizeof(double) * (n1 + n2));
+//
+//     long long seed = time(NULL);
+//     printf("seed: %lld\n", seed);
+//
+//     srand(seed);
+//
+//     printf("n1=%d, n0=%d, M=%d\n", n1, n0, M);
+//
+//
+//     generateData();
+//     calculate_floats();
+//     calculate_ints();
+//
+//
+//     print_errors();
+//
+//     printf("n1=%d n2=%d  m=%d\n", n1, n2, (n1 + n2) / n0);
+//     printf("for usual time = %lld\n", time_spent_usual);
+//     printf("for optimized time = %lld\n", time_spent_optimized);
+//     printf("\n");
+//
+//
+//     free(a);
+//     free(a_int);
+//     free(b);
+//     free(b_int);
+//     free(c_int);
+//     free(res);
+//     free(res2);
+//
+//
+//     return 0;
+// }
+
+// Умножение ленточной матрицы A на вектор x: y = A * x
+// A хранится как одномерный массив в ленточном формате
+// n — размер матрицы, k1 — нижняя полуширина, k2 — верхняя полуширина
+void banded_matvec_mult(double* A, double* x, double* y, int n, int k1, int k2) {
+    for (int i = 0; i < n; i++) {
+        y[i] = 0.0;
+        for (int j = -k1; j <= k2; j++) {
+            int col = i + j;
+            if (col >= 0 && col < n) {
+                // Смещение в ленточном хранилище: A[i * (k1 + k2 + 1) + (j + k1)]
+                y[i] += A[i * (k1 + k2 + 1) + (j + k1)] * x[col];
+            }
+        }
+    }
+}
+
+int main() {
+    int n = 200;     // размерность
+    int k1 = 100;    // нижняя полуширина
+    int k2 = 100;    // верхняя полуширина
+
+    // Выделим память
+    double* A = (double*)malloc(n * (k1 + k2 + 1) * sizeof(double));
+    double* x = (double*)malloc(n * sizeof(double));
+    double* y = (double*)malloc(n * sizeof(double));
+
+    // Заполним матрицу и вектор
+    for (int i = 0; i < n; i++) {
+        x[i] = i + 1;
+        for (int j = -k1; j <= k2; j++) {
+            int col = i + j;
+            if (col >= 0 && col < n) {
+                A[i * (k1 + k2 + 1) + (j + k1)] = 1.0;  // Пример: все элементы в ленте — 1.0
+            } else {
+                A[i * (k1 + k2 + 1) + (j + k1)] = 0.0;
+            }
+        }
+    }
 
     long long seed = time(NULL);
     printf("seed: %lld\n", seed);
 
     srand(seed);
 
-    printf("n1=%d, n0=%d, M=%d\n", n1, n0, M);
+    // Умножение
+    banded_matvec_mult(A, x, y, n, k1, k2);
 
+    // Вывод результата
+    printf("y = [");
+    for (int i = 0; i < n; i++) {
+        printf(" %.2f", y[i]);
+    }
+    printf(" ]\n");
 
-    generateData();
-    calculate_floats();
-    calculate_ints();
-
-
-    print_errors();
-
-    printf("n1=%d n2=%d  m=%d\n", n1, n2, (n1 + n2) / n0);
-    printf("for usual time = %lld\n", time_spent_usual);
-    printf("for optimized time = %lld\n", time_spent_optimized);
-    printf("\n");
-
-
-    free(a);
-    free(a_int);
-    free(b);
-    free(b_int);
-    free(c_int);
-    free(res);
-    free(res2);
-
+    // Освобождение памяти
+    free(A);
+    free(x);
+    free(y);
 
     return 0;
 }
