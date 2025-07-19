@@ -15,8 +15,8 @@ _a < _b ? _a : _b; })
 
 #include <time.h>
 
-int n1 = 128;
-int n2 = 256;
+int n1 = 32768;
+int n2 = 32768;
 int n0 = 40;
 int M = 1000;
 
@@ -36,7 +36,7 @@ long long time_spent_optimized = 0;
 
 void calculate_floats(void) {
     time_t begin = clock();
-    for (int i = 0; i < n1 + n2; i++) {
+    for (int i = 0; i < n1 + n2-1; i++) {
         int L = max(0, i-n2 + 1);
         int R = min(i, n1 - 1);
         for (int j = L; j <= R; j++) {
@@ -76,21 +76,12 @@ void sum_opt(int n, int n0, int res, int *temp_res, int *a) {
 
 void calculate_ints(void) {
     time_t begin = clock();
-
-    // for (int i = 0; i < n1 + n2; i++) {
-    //     int L = max(0, i-n2 + 1);
-    //     int R = min(i, n1 - 1);
-    //     for (int j = L; j <= R; j++) {
-    //         c_int[i] += a_int[j] * b_int[i - j];
-    //     }
-    // }
-
-    for (int i = 0; i < n1 + n2; i++) {
+    for (int i = 0; i < n1 + n2-1; i++) {
         int L = max(0, i-n2 + 1);
         int R = min(i, n1 - 1);
 
         //part for sum
-        int n = L - R + 1;
+        int n = R - L + 1;
         int m = n / n0;
         for (int j = 0; j < m; j++) {
             c_int[j] = 0;
@@ -102,11 +93,12 @@ void calculate_ints(void) {
         for (int j = 0; j < m; j++) {
             res2[i] += c_int[j];
         }
+        c_int[0] = 0;
         for (int j = m * n0; j < n; j++) {
             c_int[0] += a_int[j] * b_int[i - j];
         }
         res2[i] += c_int[0];
-        res[i] /= M * M;
+        res2[i] /= M * M;
     }
 
 
