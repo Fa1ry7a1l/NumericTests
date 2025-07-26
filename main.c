@@ -15,7 +15,7 @@ _a < _b ? _a : _b; })
 
 #include <time.h>
 
-int M = 1000;
+int M = 16;
 
 double *a;
 unsigned short *a_int;
@@ -129,6 +129,11 @@ void banded_matvec_mult(double *Ab, double *x, double *y, int n, int kl, int ku)
     }
 }
 
+
+double randd() {
+    return rand() / (double) ((long) RAND_MAX + 1);
+}
+
 int main() {
     int n = 200; // размерность
     int k1 = 100; // нижняя полуширина
@@ -156,14 +161,14 @@ int main() {
 
     // Заполним матрицу и вектор
     for (int i = 0; i < n; i++) {
-        x[i] = rand() / (double) ((long) RAND_MAX + 1);
+        x[i] = randd();
         xshort[i] = x[i] * M;
         y[i] = 0;
         y2[i] = 0;
         for (int j = -k1; j <= k2; j++) {
             int col = i + j;
             if (col >= 0 && col < n) {
-                A[i * (k1 + k2 + 1) + (j + k1)] = rand() / (double) ((long) RAND_MAX + 1); // Пример: все элементы в ленте — 1.0
+                A[i * (k1 + k2 + 1) + (j + k1)] =  randd();// Пример: все элементы в ленте — 1.0
                 Ashort[i * (k1 + k2 + 1) + (j + k1)] = A[i * (k1 + k2 + 1) + (j + k1)]*M;
             } else {
                 A[i * (k1 + k2 + 1) + (j + k1)] = 0.0;
@@ -187,7 +192,7 @@ int main() {
 
     printf("y2 = [");
     for (int i = 0; i < n; i++) {
-        printf(" %d", y2[i] / ((double) M * M));
+        printf(" %.2f", y2[i] / ((double) M * M));
     }
     printf(" ]\n");
 
