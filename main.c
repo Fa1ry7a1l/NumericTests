@@ -190,7 +190,7 @@ void calculate(int n, int k1, int k2, int n0, int m, long long M) {
         banded_matvec_mult(A, x, y, n, k1, k2);
         banded_matvec_mult_int(Ashort, xshort, y2, n, k1, k2, tmp, n0);
     }
-    print_log("%d;%d;%d;%d;%d;%d;", n, k1, k2, n0, m, M,(double) time_spent_usual / CLOCKS_PER_SEC / 10 ,(double) time_spent_optimized / CLOCKS_PER_SEC);
+    print_log("%d;%d;%d;%d;%f;%f;", n, k1, k2, n0, m, M,(double) time_spent_usual / CLOCKS_PER_SEC / 10 ,(double) time_spent_optimized / CLOCKS_PER_SEC);
 
     // Вывод результата
     // printf("y = [");
@@ -281,7 +281,7 @@ int main() {
                         if (M / n0 < min_t)
                             continue;
                         calculate(n, k1, k2, n0, m, M / n0);
-                        goto a;
+                        // goto a;
                     }
                 }
             }
