@@ -7,7 +7,7 @@
 #include <limits.h>
 
 // ================== ПАРАМЕТРЫ ТЕСТА ==================
-static const int n = 1000000;           // размер матрицы (n x n)
+static const int n = 10000;           // размер матрицы (n x n)
 static const int band_half_width = 31; // половина ширины полосы
 static const int band_count = 20;       // число полос
 static const int band_centers[20] = {0, -100, +100, -200, +200, -300, +300, -400, +400, -500, +500, -600, + 600, -700, +700, -800 , +800,-900,+900,-1000}; // центры полос (offset = j-i)
@@ -27,6 +27,236 @@ typedef struct {
     int *len;
     size_t *ptr;
 } BandMeta;
+
+// ================== ХРАНЕНИЕ ДВУХ ВАРИАНТОВ ЛЕНТЫ ==================
+typedef struct {
+    BandMeta meta;
+    double *data;   // baseline в double
+} BandD;
+
+typedef struct {
+    BandMeta meta;
+    int16_t *data;  // квантованная матрица
+} BandI16;
+
+// === NEW: формат «периметр» (double) ===
+typedef struct {
+    int n;
+    int strips;        // число диагоналей (полос)
+    int *meta;         // длина = 2*strips, как пары [delta_up, width]
+    double *data;      // конкатенация значений диагоналей (по возрастанию i)
+} PerimD;
+
+static void perimd_free(PerimD *P){
+    if(!P) return;
+    free(P->meta);
+    free(P->data);
+    free(P);
+}
+
+// === NEW: формат «периметр» (int16) ===
+typedef struct {
+    int n;
+    int strips;
+    int *meta;         // [delta_up, width] * strips
+    int16_t *data;     // значения диагоналей (по возрастанию i), int16
+} PerimI16;
+
+static void perimi16_free(PerimI16 *P){
+    if(!P) return;
+    free(P->meta);
+    free(P->data);
+    free(P);
+}
+
+// === NEW: утилита — вычислить «позицию контакта» диагонали с периметром
+// путь: 0..n-1 вверх по левому краю, затем n..(2n-2) вправо по верхнему краю
+// для off<=0 контакт на левом краю в i = -off => pos = (n-1) + off
+// для off>0  контакт на верхнем краю в j = off => pos = n + off
+static inline int perimeter_contact_pos(int n, int off){
+    if(off <= 0) return (n - 1) + off; // в диапазоне [0..n-1]
+    else         return n + off;       // в диапазоне [n..2n-2]
+}
+
+// === NEW: построитель PerimD из ленты double
+static PerimD* perim_from_bandD(const BandD *A, clock_t *t_build_out){
+    const BandMeta *m = &A->meta;
+    int n = m->n, k = m->k;
+    clock_t t0 = clock();
+
+    // Соберём список (off, ld, di) и отсортируем по contact_pos
+    typedef struct { int off, ld, di, pos; } DItem;
+    DItem *items = (DItem*)malloc(sizeof(DItem)*k);
+    int cnt = 0;
+    size_t total_nnz = 0;
+    for(int d=0; d<k; ++d){
+        int off = m->offsets[d];
+        int ld  = m->len[d];
+        if(ld<=0) continue;
+        items[cnt].off = off;
+        items[cnt].ld  = ld;
+        items[cnt].di  = d;
+        items[cnt].pos = perimeter_contact_pos(n, off);
+        total_nnz += (size_t)ld;
+        cnt++;
+    }
+    // sort by pos
+    for(int i=0;i<cnt;i++){
+        for(int j=i+1;j<cnt;j++){
+            if(items[j].pos < items[i].pos){
+                DItem tmp = items[i]; items[i]=items[j]; items[j]=tmp;
+            }
+        }
+    }
+
+    PerimD *P = (PerimD*)calloc(1,sizeof(PerimD));
+    P->n = n;
+    P->strips = cnt;
+    P->meta = (int*)malloc(sizeof(int)*2*cnt);
+    P->data = (double*)malloc(sizeof(double)*total_nnz);
+    if(!P->meta || !P->data){
+        fprintf(stderr,"perim_from_bandD: alloc failed\n");
+        exit(1);
+    }
+
+    // Заполняем meta как [delta_up, width], начиная от contact=0
+    int prev_pos = 0;
+    size_t wp = 0;
+    for(int s=0; s<cnt; ++s){
+        int pos = items[s].pos;
+        int delta_up = (s==0) ? pos : (pos - prev_pos);
+        int width = items[s].ld;
+        P->meta[2*s+0] = delta_up;
+        P->meta[2*s+1] = width;
+        prev_pos = pos;
+
+        // скопировать значения диагонали в data в порядке возрастания i
+        int d = items[s].di;
+        int si = m->start_i[d];
+        const double *diag = A->data + m->ptr[d];
+        for(int t=0; t<items[s].ld; ++t){
+            P->data[wp++] = diag[t];
+        }
+    }
+
+    free(items);
+    if(t_build_out) *t_build_out = clock() - t0;
+    return P;
+}
+
+// === NEW: построитель PerimI16 из ленты int16
+static PerimI16* perim_from_bandI16(const BandI16 *A, clock_t *t_build_out){
+    const BandMeta *m = &A->meta;
+    int n = m->n, k = m->k;
+    clock_t t0 = clock();
+
+    typedef struct { int off, ld, di, pos; } DItem;
+    DItem *items = (DItem*)malloc(sizeof(DItem)*k);
+    int cnt = 0;
+    size_t total_nnz = 0;
+    for(int d=0; d<k; ++d){
+        int off = m->offsets[d];
+        int ld  = m->len[d];
+        if(ld<=0) continue;
+        items[cnt].off = off;
+        items[cnt].ld  = ld;
+        items[cnt].di  = d;
+        items[cnt].pos = perimeter_contact_pos(n, off);
+        total_nnz += (size_t)ld;
+        cnt++;
+    }
+    // sort by pos
+    for(int i=0;i<cnt;i++){
+        for(int j=i+1;j<cnt;j++){
+            if(items[j].pos < items[i].pos){
+                DItem tmp = items[i]; items[i]=items[j]; items[j]=tmp;
+            }
+        }
+    }
+
+    PerimI16 *P = (PerimI16*)calloc(1,sizeof(PerimI16));
+    P->n = n;
+    P->strips = cnt;
+    P->meta = (int*)malloc(sizeof(int)*2*cnt);
+    P->data = (int16_t*)malloc(sizeof(int16_t)*total_nnz);
+    if(!P->meta || !P->data){
+        fprintf(stderr,"perim_from_bandI16: alloc failed\n");
+        exit(1);
+    }
+
+    int prev_pos = 0;
+    size_t wp = 0;
+    for(int s=0; s<cnt; ++s){
+        int pos = items[s].pos;
+        int delta_up = (s==0) ? pos : (pos - prev_pos);
+        int width = items[s].ld;
+        P->meta[2*s+0] = delta_up;
+        P->meta[2*s+1] = width;
+        prev_pos = pos;
+
+        int d = items[s].di;
+        const int16_t *diag = A->data + m->ptr[d];
+        for(int t=0; t<items[s].ld; ++t){
+            P->data[wp++] = diag[t];
+        }
+    }
+
+    free(items);
+    if(t_build_out) *t_build_out = clock() - t0;
+    return P;
+}
+
+// === NEW: референсное умножение по PerimD (double) — y = A*x
+// Ты можешь заменить содержимое на свою реализацию, сигнатуру оставляю.
+static void perim_matvec_double_ref(const PerimD *P, const double *x, double *y){
+    int n = P->n;
+    for(int i=0;i<n;++i) y[i]=0.0;
+
+    int pos = 0;        // текущая позиция на периметре
+    size_t rp = 0;      // позиция чтения в P->data
+    int upper_it_count = P->strips + P->strips;
+    int *meta = P->meta;
+    double *data = P->data;
+    for(int s=0; s<upper_it_count; s+=2){
+        int delta_up = meta[s];
+        int width    = meta[s+1];
+        pos += delta_up;
+        int off = (pos < n) ? (pos - (n - 1)) : (pos - n);
+        int i0  = (off<0) ? -off : 0;
+
+        for(int t=0; t<width; ++t){
+            int i = i0 + t;
+            int j = i + off;
+            double a = data[rp++];
+            y[i] += a * x[j];
+        }
+    }
+}
+
+// === NEW: референсное умножение по PerimI16 (int16/int32) — yS2 = A_S * x_S
+// Внутри всё в int32_t, как ты просил.
+static void perim_matvec_i16_ref(const PerimI16 *P, const int16_t *xS, int32_t *yS2){
+    int n = P->n;
+    for(int i=0;i<n;++i) yS2[i]=0;
+
+    int pos = 0;
+    size_t rp = 0;
+    for(int s=0; s<P->strips; ++s){
+        int delta_up = P->meta[2*s+0];
+        int width    = P->meta[2*s+1];
+        pos += delta_up;
+        int off = (pos < n) ? (pos - (n - 1)) : (pos - n);
+        int i0  = (off<0) ? -off : 0;
+
+        for(int t=0; t<width; ++t){
+            int i = i0 + t;
+            int j = i + off;
+            int32_t a = (int32_t)P->data[rp++];
+            int32_t b = (int32_t)xS[j];
+            yS2[i] += a * b; // предполагается, что не переполняется
+        }
+    }
+}
 
 static void meta_free(BandMeta *m) {
     if (!m) return;
@@ -88,16 +318,7 @@ static BandMeta meta_build(int n, int k, const int *offsets) {
     return M;
 }
 
-// ================== ХРАНЕНИЕ ДВУХ ВАРИАНТОВ ЛЕНТЫ ==================
-typedef struct {
-    BandMeta meta;
-    double *data;   // baseline в double
-} BandD;
 
-typedef struct {
-    BandMeta meta;
-    int16_t *data;  // квантованная матрица
-} BandI16;
 
 static BandD *bandd_create_random_signed(int n) {
     int k;
@@ -562,6 +783,78 @@ int main(void) {
     double err_l1_csr  = rel_l1(y_d, y_q_csr,  n);
     double err_l2_csr  = rel_l2(y_d, y_q_csr,  n);
 
+    // === NEW: построение «периметр» структур ===
+    clock_t t_perimd_build = 0, t_perimi16_build = 0;
+    PerimD  *Pd  = perim_from_bandD(A,  &t_perimd_build);
+    PerimI16*Pi16= perim_from_bandI16(Aq, &t_perimi16_build);
+
+    // Буферы для периметра
+    double  *y_perim_d     = (double*)  malloc(sizeof(double)*n);
+    int16_t *xS_perim      = (int16_t*) malloc(sizeof(int16_t)*n);
+    int16_t *xS2_perim     = (int16_t*) malloc(sizeof(int16_t)*n);
+    int32_t *yS2_perim     = (int32_t*) malloc(sizeof(int32_t)*n);
+    double  *y_q_perim     = (double*)  malloc(sizeof(double)*n);
+    for (int i = 0;i< n;i++) {
+        y_perim_d[i] = xS_perim[i] =xS2_perim[i] = yS2_perim[i] = y_perim_d[i] = 0;
+    }
+
+    if(!y_perim_d || !xS_perim || !xS2_perim || !yS2_perim || !y_q_perim){
+        fprintf(stderr,"Alloc failed (perimeter buffers)\n");
+        return 1;
+    }
+
+    // ----- 4) Perimeter-Double: A*x -----
+    clock_t t_perimd_matmul = 0;
+    for(int e=0; e<epochs; ++e){
+        double *tmpP = tmp; // переиспользуем tmp-буфер
+        for(int i=0;i<n;++i) tmpP[i] = x[i];
+        clock_t t0 = clock();
+        for(int it=0; it<iterationsCount; ++it){
+            perim_matvec_double_ref(Pd, tmpP, y_perim_d);
+            for(int i=0;i<n;++i) tmpP[i] = y_perim_d[i];
+        }
+        t_perimd_matmul += clock() - t0;
+    }
+
+    // ----- 5) Perimeter-I16: A*x -----
+    clock_t t_conv_perim = 0, t_perimi16_matmul = 0;
+    for(int e=0; e<epochs; ++e){
+        clock_t t0 = clock();
+        quantize_x_i16(x, n, xS_perim, S);
+        t_conv_perim += clock() - t0;
+
+        for(int it=0; it<iterationsCount; ++it){
+            t0 = clock();
+            perim_matvec_i16_ref(Pi16, xS_perim, yS2_perim);
+            t_perimi16_matmul += clock() - t0;
+
+            t0 = clock();
+            dequantize_y_update_xS(yS2_perim, y_q_perim, xS2_perim, n, S);
+            for(int i=0;i<n;++i) xS_perim[i] = xS2_perim[i];
+            t_conv_perim += clock() - t0;
+        }
+    }
+
+    // --- ошибки для новых форматов (одна итерация) ---
+    // perim-double vs baseline
+    perim_matvec_double_ref(Pd, x, y_perim_d);
+    double err_l1_perimd = rel_l1(y_d, y_perim_d, n);
+    double err_l2_perimd = rel_l2(y_d, y_perim_d, n);
+
+    // perim-int16 vs baseline
+    quantize_x_i16(x, n, xS_perim, S);
+    perim_matvec_i16_ref(Pi16, xS_perim, yS2_perim);
+    dequantize_y_update_xS(yS2_perim, y_q_perim, xS2_perim, n, S);
+    double err_l1_perimi16 = rel_l1(y_d, y_q_perim, n);
+    double err_l2_perimi16 = rel_l2(y_d, y_q_perim, n);
+
+    // --- печать метрик по новым форматам ---
+    double tPMD  = (double)t_perimd_matmul   / CLOCKS_PER_SEC / epochs;
+    double tPMI  = (double)t_perimi16_matmul / CLOCKS_PER_SEC / epochs;
+    double tPCV  = (double)t_conv_perim      / CLOCKS_PER_SEC / epochs;
+    double tPBD  = (double)t_perimd_build    / CLOCKS_PER_SEC;
+    double tPBI  = (double)t_perimi16_build  / CLOCKS_PER_SEC;
+
     // ----- вывод таймингов и ошибок -----
     double tD    = (double) t_double      / CLOCKS_PER_SEC / epochs;
     double tMM_b = (double) t_matmul_band / CLOCKS_PER_SEC / epochs;
@@ -580,17 +873,30 @@ int main(void) {
     printf("RelError (band-int16) L2: %.6f%%\n", err_l2_band);
     printf("RelError (csr-int16 ) L1: %.6f%%\n", err_l1_csr);
     printf("RelError (csr-int16 ) L2: %.6f%%\n", err_l2_csr);
+    printf("RelError (perim-double) L1: %.6f%%\n", err_l1_perimd);
+    printf("RelError (perim-double) L2: %.6f%%\n", err_l2_perimd);
+    printf("RelError (perim-int16 ) L1: %.6f%%\n", err_l1_perimi16);
+    printf("RelError (perim-int16 ) L2: %.6f%%\n", err_l2_perimi16);
 
     printf("Time (double baseline):                 %.6f s/epoch\n", tD);
     printf("Time (band-int16 matmul only):          %.6f s/epoch\n", tMM_b);
     printf("Time (band-int16 quant/dequant epoch):  %.6f s/epoch\n", tCV_b);
     printf("Time (csr-int16 matmul only):           %.6f s/epoch\n", tMM_c);
     printf("Time (csr-int16 quant/dequant epoch):   %.6f s/epoch\n", tCV_c);
+    printf("Time (perim-double matmul only):        %.6f s/epoch\n", tPMD);
+    printf("Time (perim-int16 matmul only):         %.6f s/epoch\n", tPMI);
+    printf("Time (perim-int16 quant/dequant epoch): %.6f s/epoch\n", tPCV);
+
+
     printf("Time (matrix quantization once):        %.6f s\n",      tAQ);
     printf("Time (CSR build from band-int16 once):  %.6f s\n",      tCSR);
+    printf("Time (perim-double build once):         %.6f s\n",      tPBD);
+    printf("Time (perim-int16  build once):         %.6f s\n",      tPBI);
 
     if (tMM_b > 0.0) printf("Speedup (double / band-int16-matmul):  %.2fx\n", tD / tMM_b);
     if (tMM_c > 0.0) printf("Speedup (double / csr-int16-matmul):   %.2fx\n", tD / tMM_c);
+    if (tPMD > 0.0) printf("Speedup (double / perim-double):       %.2fx\n", tD / tPMD);
+    if (tPMI > 0.0) printf("Speedup (double / perim-int16):        %.2fx\n", tD / tPMI);
 
     // ----- Суммы результатов (для проверки, что вектора "живые") -----
     double sum_y_d      = 0.0;
@@ -604,6 +910,14 @@ int main(void) {
     printf("Sum(y_double baseline):     %.10e\n", sum_y_d);
     printf("Sum(y_band int16 dequant):  %.10e\n", sum_y_band);
     printf("Sum(y_csr  int16 dequant):  %.10e\n", sum_y_csr);
+    // суммы результатов
+    double sum_y_perimd = 0.0, sum_y_perimi16 = 0.0;
+    for(int i=0;i<n;++i){
+        sum_y_perimd   += y_perim_d[i];
+        sum_y_perimi16 += y_q_perim[i];
+    }
+    printf("Sum(y_perim double)         %.10e\n", sum_y_perimd);
+    printf("Sum(y_perim int16 dequant)  %.10e\n", sum_y_perimi16);
 
     // ----- очистка -----
     free(x);
@@ -623,6 +937,15 @@ int main(void) {
     bandd_free(A);
     bandi16_free(Aq);
     csr_free(Ac);
+
+    // очистка новых структур/буферов
+    free(y_perim_d);
+    free(xS_perim);
+    free(xS2_perim);
+    free(yS2_perim);
+    free(y_q_perim);
+    perimd_free(Pd);
+    perimi16_free(Pi16);
 
     return 0;
 }
