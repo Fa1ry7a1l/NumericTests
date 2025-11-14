@@ -7,18 +7,17 @@
 #include <limits.h>
 
 // ================== ПАРАМЕТРЫ ТЕСТА ==================
-static const int n = 1000000;          // размер матрицы (n x n)
-static const int band_half_width = 25; // половина ширины полосы (~51 диагональ на полосу)
-static const int band_count = 10;      // число полос
-static const int band_centers[3] = {0, +10000, -20000}; // центры полос (offset = j-i)
+static const int n = 1000000;           // размер матрицы (n x n)
+static const int band_half_width = 31; // половина ширины полосы
+static const int band_count = 20;       // число полос
+static const int band_centers[20] = {0, -100, +100, -200, +200, -300, +300, -400, +400, -500, +500, -600, + 600, -700, +700, -800 , +800,-900,+900,-1000}; // центры полос (offset = j-i)
 
 static const int iterationsCount = 20; // итерации x := A*x
 static const int epochs = 3;           // усреднение по эпохам
-static const int S = 32767;            // масштаб для int16_t (|val|<1)
+static const int S = 4096;            // масштаб для int16_t (|val|<1)
 
-#define PARTIAL_CHUNK 8 // размер блока диагоналей для частичных сумм в band-int16
-#define CSR_PARTIAL_CHUNK 32
-
+#define PARTIAL_CHUNK      128   // размер блока диагоналей для частичных сумм в band-int16
+#define CSR_PARTIAL_CHUNK 128   // размер блока nnz для частичных сумм в csr-int16
 
 // ================== МЕТАДАННЫЕ ЛЕНТЫ ==================
 typedef struct {
@@ -50,7 +49,7 @@ static int *build_offsets_from_bands(int *out_k) {
     }
     int idx = 0;
     for (int b = 0; b < band_count; ++b) {
-        int c = band_centers[b]; // NB: band_centers длиной 3, band_count=10 — UB, но по условию не трогаем
+        int c = band_centers[b];
         for (int d = -band_half_width; d <= band_half_width; ++d) {
             int off = c + d;
             if (off <= -n + 1) off = -n + 2;
@@ -92,12 +91,12 @@ static BandMeta meta_build(int n, int k, const int *offsets) {
 // ================== ХРАНЕНИЕ ДВУХ ВАРИАНТОВ ЛЕНТЫ ==================
 typedef struct {
     BandMeta meta;
-    double *data;
+    double *data;   // baseline в double
 } BandD;
 
 typedef struct {
     BandMeta meta;
-    int16_t *data;
+    int16_t *data;  // квантованная матрица
 } BandI16;
 
 static BandD *bandd_create_random_signed(int n) {
@@ -124,8 +123,8 @@ static BandD *bandd_create_random_signed(int n) {
 
     // Случайные (-1,1), усилим центральные диагонали полос
     for (int d = 0; d < k; ++d) {
-        int off = A->meta.offsets[d];
-        int ld  = A->meta.len[d];
+        int off  = A->meta.offsets[d];
+        int ld   = A->meta.len[d];
         size_t base = A->meta.ptr[d];
         int is_center = 0;
         for (int c = 0; c < band_count; ++c) {
@@ -168,10 +167,8 @@ static BandI16 *bandi16_from_bandd(const BandD *Ad, int S) {
         size_t based = Ad->meta.ptr[d];
         int ld = Aq->meta.len[d];
         for (int t = 0; t < ld; ++t) {
-            long v = lround(Ad->data[based + (size_t) t] * (double) S);
-            if (v < -(long) S) v = -(long) S;
-            if (v >  (long) S) v =  (long) S;
-            Aq->data[base + (size_t) t] = (int16_t) v;
+            double scaled = Ad->data[based + (size_t)t] * (double)S;
+            Aq->data[base + (size_t)t] = (int16_t)scaled; // предполагается, что не переполняется
         }
     }
     return Aq;
@@ -197,7 +194,7 @@ typedef struct {
     size_t nnz;
     int *row_ptr;    // размер n+1
     int *col_idx;    // размер nnz
-    int16_t *vals;   // размер nnz
+    int16_t *vals;   // размер nnz (int16 матрица)
 } CSR_I16;
 
 static void csr_free(CSR_I16 *A) {
@@ -299,13 +296,6 @@ static CSR_I16 *csr_from_bandI16(const BandI16 *Aq, clock_t *t_build_out) {
     return C;
 }
 
-// ================== ВСПОМОГАТЕЛЬНОЕ SAT-CAST ==================
-static int32_t clamp_i32_ll(long long v) {
-    if (v < (long long)INT32_MIN) return INT32_MIN;
-    if (v > (long long)INT32_MAX) return INT32_MAX;
-    return (int32_t)v;
-}
-
 // ================== УМНОЖЕНИЕ ==================
 // 1) baseline: y = A(double) * x
 static void band_matvec_double(const BandD *A, const double *x, double *y) {
@@ -322,10 +312,10 @@ static void band_matvec_double(const BandD *A, const double *x, double *y) {
     }
 }
 
-// 2) optimized band (int16): yS2 = A_S * x_S, с частичными суммами int32
+// 2) optimized band (int16): yS2 (int32) = A_S * x_S, с частичными суммами
 static void band_matvec_i16_pure(const BandI16 *Aq,
                                  const int16_t *xS,
-                                 int64_t *yS2_out) {
+                                 int32_t *yS2_out) {
     const BandMeta *m = &Aq->meta;
     int n = m->n;
     int k = m->k;
@@ -340,7 +330,7 @@ static void band_matvec_i16_pure(const BandI16 *Aq,
             int upto = base + PARTIAL_CHUNK;
             if (upto > k) upto = k;
 
-            long long local = 0;
+            int32_t local = 0;
             for (int d = base; d < upto; ++d) {
                 int si  = m->start_i[d];
                 int ld  = m->len[d];
@@ -353,24 +343,23 @@ static void band_matvec_i16_pure(const BandI16 *Aq,
                 const int16_t *diagS = Aq->data + m->ptr[d];
                 int32_t a = (int32_t)diagS[ti];
                 int32_t b = (int32_t)xS[j];
-                local += (long long)a * (long long)b;
+                local += a * b;   // предполагается, что не переполняется
             }
-            t[t_count++] = clamp_i32_ll(local);
+            t[t_count++] = local; // временная частичная сумма в int
         }
 
-        long long acc = 0;
+        int32_t acc = 0;
         for (int s = 0; s < t_count; ++s) {
-            acc += (long long)t[s];
+            acc += t[s];          // финальная сумма в int
         }
-        yS2_out[i] = (int64_t)acc;
+        yS2_out[i] = acc;
     }
 }
 
-// 3) optimized CSR (int16): yS2 = A_S * x_S по CSR-структуре (только ненулевые)
+// 3) optimized CSR (int16): yS2 (int32) = A_S * x_S по CSR
 static void csr_matvec_i16(const CSR_I16 *A,
                            const int16_t *xS,
-                           int64_t *yS2_out)
-{
+                           int32_t *yS2_out) {
     int n = A->n;
     const int *row_ptr = A->row_ptr;
     const int *col_idx = A->col_idx;
@@ -381,21 +370,18 @@ static void csr_matvec_i16(const CSR_I16 *A,
         int row_end   = row_ptr[i+1];
         int nnz_row   = row_end - row_start;
 
-        // максимум частичных сумм в строке
         int max_slots = (nnz_row + CSR_PARTIAL_CHUNK - 1) / CSR_PARTIAL_CHUNK;
         if (max_slots <= 0) {
             yS2_out[i] = 0;
             continue;
         }
 
-        // VLA под t[k] — int32 частичные суммы
         int32_t t[max_slots];
         int t_count = 0;
 
-        // идём по элементам строки блоками по CSR_PARTIAL_CHUNK
         int p = row_start;
         while (p < row_end) {
-            long long local = 0;
+            int32_t local = 0;
             int limit = p + CSR_PARTIAL_CHUNK;
             if (limit > row_end) limit = row_end;
 
@@ -403,62 +389,59 @@ static void csr_matvec_i16(const CSR_I16 *A,
                 int j = col_idx[p];
                 int32_t a = (int32_t)vals[p];
                 int32_t b = (int32_t)xS[j];
-                local += (long long)a * (long long)b;
+                local += a * b;    // предполагается, что не переполняется
             }
 
-            t[t_count++] = clamp_i32_ll(local);
+            t[t_count++] = local;
         }
 
-        long long acc = 0;
+        int32_t acc = 0;
         for (int s = 0; s < t_count; ++s) {
-            acc += (long long)t[s];
+            acc += t[s];
         }
-        yS2_out[i] = (int64_t)acc;
+        yS2_out[i] = acc;
     }
 }
 
 // ================== КОНВЕРСИИ (время считаем отдельно) ==================
 static void quantize_x_i16(const double *x, int n,
                            int16_t *xS, int S) {
+    (void)S;
     for (int i = 0; i < n; ++i) {
-        long vx = lround(x[i] * (double) S);
-        if (vx < -(long) S) vx = -(long) S;
-        if (vx >  (long) S) vx =  (long) S;
-        xS[i] = (int16_t) vx;
+        double scaled = x[i] * (double)S;
+        xS[i] = (int16_t)scaled; // предполагается, что не переполняется
     }
 }
 
-static void dequantize_y_update_xS(const int64_t *yS2, double *y,
+static void dequantize_y_update_xS(const int32_t *yS2, double *y,
                                    int16_t *xS_next, int n, int S) {
     const double invS2 = 1.0 / ((double) S * (double) S);
     for (int i = 0; i < n; ++i) {
-        double val = (double) yS2[i] * invS2;
+        double val = (double)yS2[i] * invS2;
         y[i] = val;
-        long vx = lround(val * (double) S);
-        if (vx < -(long) S) vx = -(long) S;
-        if (vx >  (long) S) vx =  (long) S;
-        xS_next[i] = (int16_t) vx;
+        double scaled = val * (double)S;
+        xS_next[i] = (int16_t)scaled; // предполагается, что не переполняется
     }
 }
 
 // ================== МЕТРИКИ ==================
 static double rel_l1(const double *ref, const double *test, int n) {
-    double num = 0, den = 0;
+    double num = 0.0, den = 0.0;
     for (int i = 0; i < n; ++i) {
         num += fabs(ref[i] - test[i]);
         den += fabs(ref[i]);
     }
-    return (den > 0) ? (100.0 * num / den) : 0.0;
+    return (den > 0.0) ? (100.0 * num / den) : 0.0;
 }
 
 static double rel_l2(const double *ref, const double *test, int n) {
-    double num = 0, den = 0;
+    double num = 0.0, den = 0.0;
     for (int i = 0; i < n; ++i) {
         double d = ref[i] - test[i];
         num += d * d;
         den += ref[i] * ref[i];
     }
-    return (den > 0) ? (100.0 * sqrt(num / den)) : 0.0;
+    return (den > 0.0) ? (100.0 * sqrt(num / den)) : 0.0;
 }
 
 // ================== MAIN ==================
@@ -488,11 +471,11 @@ int main(void) {
 
     int16_t *xS_band    = (int16_t *) malloc(sizeof(int16_t) * n);
     int16_t *xS2_band   = (int16_t *) malloc(sizeof(int16_t) * n);
-    int64_t *yS2_band   = (int64_t *) malloc(sizeof(int64_t) * n);
+    int32_t *yS2_band   = (int32_t *) malloc(sizeof(int32_t) * n);
 
     int16_t *xS_csr     = (int16_t *) malloc(sizeof(int16_t) * n);
     int16_t *xS2_csr    = (int16_t *) malloc(sizeof(int16_t) * n);
-    int64_t *yS2_csr    = (int64_t *) malloc(sizeof(int64_t) * n);
+    int32_t *yS2_csr    = (int32_t *) malloc(sizeof(int32_t) * n);
 
     if (!x || !y_d || !y_q_band || !y_q_csr || !tmp ||
         !xS_band || !xS2_band || !yS2_band ||
@@ -589,7 +572,9 @@ int main(void) {
     double tCSR  = (double) t_csr_build   / CLOCKS_PER_SEC;
 
     printf("n = %d, bands = %d x ~%d diagonals\n", n, band_count, 2 * band_half_width + 1);
+    printf("S = %d\n",S);
     printf("PARTIAL_CHUNK (band-int16) = %d\n", PARTIAL_CHUNK);
+    printf("CSR_PARTIAL_CHUNK          = %d\n", CSR_PARTIAL_CHUNK);
 
     printf("RelError (band-int16) L1: %.6f%%\n", err_l1_band);
     printf("RelError (band-int16) L2: %.6f%%\n", err_l2_band);
