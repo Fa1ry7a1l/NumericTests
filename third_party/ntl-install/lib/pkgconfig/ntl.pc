@@ -1,0 +1,8 @@
+includedir=../../ntl-install/include
+libdir=../../ntl-install/lib
+Name: NTL
+Description: A Library for doing Number Theory
+Version: 11.6.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lntl
+Requires.private: gmp >= 5.0 

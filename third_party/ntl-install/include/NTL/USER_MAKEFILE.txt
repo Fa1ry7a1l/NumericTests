@@ -1,0 +1,32 @@
+# This is a sample makefile that can be used to compile programs using 
+# an installed version of NTL.
+# Using this ensures that your programs compile with flags consistent
+# with the build, and link to the right libraries.
+#
+# The basic functionality provided by this makefile is to allow
+# you to compile 'foo.cpp' into the executable file 'foo' by executing
+#    make foo   
+# You can adapt this to the needs of your own project as necessary.
+
+
+.cpp:
+	g++ -I../../ntl-install/include   -g -O2 -march=native  $< -o $@  -L../../ntl-install/lib   -lntl -L../../gmp-install/lib  -Wl,-rpath,../../gmp-install/lib -lgmp     -lm
+
+# ntl was installed as a static library with dependencies: gmp
+
+# COMPILER OPTIONS
+# "-I../../ntl-install/include" ensures ntl header files found at compile time
+# "-g" enables the debugger
+# "-O2" enables (level 2) optimization (highly recommend not changing)
+# "-march=native" targets compilation to the native instruction set
+# "$<" expands to "foo.cpp" when run as "make foo"
+
+# LINKER OPTIONS
+# "-o $@" expands to "-o foo" when run as "make foo"
+# "-L../../ntl-install/lib" ensures ntl is found at link time
+# "-lntl" ensures that program will link to ntl
+# "-L../../gmp-install/lib" ensures that gmp is found at link time
+# "-Wl,-rpath,../../gmp-install/lib" ensures gmp is found at runtime
+#    if it is a shared lib
+#    alternatively, add ../../gmp-install/lib to LD_LIBRARY_PATH
+# "-lgmp" ensures that program will link to gmp
