@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="BackendCodeEditorMiscSettings">
+    <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
+    <option name="/Default/Housekeeping/GlobalSettingsUpgraded/IsUpgraded/@EntryValue" value="true" type="bool" />
+    <option name="/Default/RiderDebugger/RiderRestoreDecompile/RestoreDecompileSetting/@EntryValue" value="false" type="bool" />
+  </component>
+  <component name="CMakePresetLoader">{
+  &quot;useNewFormat&quot;: true
+}</component>
+  <component name="CMakeProjectFlavorService">
+    <option name="flavorId" value="CMakePlainProjectFlavor" />
+  </component>
+  <component name="CMakeReloadState">
+    <option name="reloaded" value="true" />
+  </component>
+  <component name="CMakeRunConfigurationManager">
+    <generated>
+      <config projectName="tests" targetName="tests" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+      <configuration PROFILE_NAME="Release" ENABLED="true" CONFIG_NAME="Release" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="1beb2178-6cbf-47ca-8d45-8e0e86b77b19" name="Changes" comment="фурье" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Release" />
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="ConvolutionWithSum" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="ROOT_SYNC" value="DONT_SYNC" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Fa1ry7a1l&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Fa1ry7a1l/NumericTests.git&quot;,
+    &quot;accountId&quot;: &quot;88b1e9d0-0e0e-48e2-b9a4-75ea93fa5bdb&quot;
+  }
+}</component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="mock://C:/Users/andrey/CLionProjects/NumericTests/main.cpp" root0="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="ProjectApplicationVersion">
+    <option name="ide" value="CLion" />
+    <option name="majorVersion" value="2025" />
+    <option name="minorVersion" value="2.3" />
+    <option name="productBranch" value="Classic" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="34bREHILTRTZLbBppOfvwFahr7x" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "C/C++ File.main.c.executor": "Run",
+    "CMake Application.tests.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.RadMigrateCodeStyle": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "RunOnceActivity.west.config.association.type.startup.service": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "git-widget-placeholder": "main",
+    "ignore.virus.scanning.warn.message": "true",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "CMakeSettings",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager" selected="C/C++ File.main.c">
+    <configuration name="tests" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="tests" TARGET_NAME="tests" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="tests" RUN_TARGET_NAME="tests">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="main.c" type="CppFileRunConfiguration" factoryName="CppFileRunConfiguration" temporary="true" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="NumericTests" TARGET_NAME="main.c" CONFIG_NAME="main.c">
+      <option name="sourceFile" value="main.c" />
+      <method v="2">
+        <option name="com.jetbrains.cidr.cpp.runfile.CppFileBuildBeforeRunTaskProvider$BasicBuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="C/C++ File.main.c" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="1beb2178-6cbf-47ca-8d45-8e0e86b77b19" name="Changes" comment="" />
+      <created>1761480171701</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1761480171701</updated>
+      <workItem from="1761480172843" duration="3172000" />
+      <workItem from="1761486214010" duration="1187000" />
+      <workItem from="1762242783784" duration="7919000" />
+      <workItem from="1762346610526" duration="17000" />
+      <workItem from="1762595599771" duration="4392000" />
+      <workItem from="1762622607689" duration="440000" />
+      <workItem from="1762631164616" duration="34000" />
+      <workItem from="1762666554988" duration="182000" />
+      <workItem from="1762666793724" duration="7737000" />
+      <workItem from="1763144374225" duration="337000" />
+      <workItem from="1763146512648" duration="4972000" />
+      <workItem from="1763196481694" duration="5902000" />
+      <workItem from="1763275707796" duration="3585000" />
+      <workItem from="1763790079520" duration="1639000" />
+      <workItem from="1764086113844" duration="3797000" />
+      <workItem from="1764099599981" duration="1542000" />
+      <workItem from="1764101908689" duration="46000" />
+      <workItem from="1764101968259" duration="31000" />
+      <workItem from="1778648195175" duration="3195000" />
+      <workItem from="1778666910894" duration="981000" />
+      <workItem from="1778950314899" duration="1213000" />
+      <workItem from="1779536907780" duration="3804000" />
+      <workItem from="1779603619776" duration="1000" />
+      <workItem from="1779641811773" duration="896000" />
+      <workItem from="1779687638001" duration="1942000" />
+      <workItem from="1779738625810" duration="317000" />
+      <workItem from="1779813433164" duration="2964000" />
+      <workItem from="1780931665156" duration="20000" />
+      <workItem from="1781034698433" duration="654000" />
+      <workItem from="1781104634163" duration="259000" />
+      <workItem from="1781104905938" duration="715000" />
+    </task>
+    <task id="LOCAL-00001" summary="band1">
+      <option name="closed" value="true" />
+      <created>1761483203212</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1761483203212</updated>
+    </task>
+    <task id="LOCAL-00002" summary="band2">
+      <option name="closed" value="true" />
+      <created>1761483504797</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1761483504797</updated>
+    </task>
+    <task id="LOCAL-00003" summary="band2">
+      <option name="closed" value="true" />
+      <created>1762244506918</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1762244506918</updated>
+    </task>
+    <task id="LOCAL-00004" summary="замедлелись">
+      <option name="closed" value="true" />
+      <created>1762603577693</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1762603577693</updated>
+    </task>
+    <task id="LOCAL-00005" summary="замедлелись">
+      <option name="closed" value="true" />
+      <created>1763146672607</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1763146672607</updated>
+    </task>
+    <task id="LOCAL-00006" summary="УскорЕлисъ">
+      <option name="closed" value="true" />
+      <created>1763151076022</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1763151076022</updated>
+    </task>
+    <task id="LOCAL-00007" summary="УсКоРеЛиСь">
+      <option name="closed" value="true" />
+      <created>1763279910023</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1763279910023</updated>
+    </task>
+    <task id="LOCAL-00008" summary="скалярное произведение">
+      <option name="closed" value="true" />
+      <created>1764101991872</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1764101991872</updated>
+    </task>
+    <task id="LOCAL-00009" summary="фурье">
+      <option name="closed" value="true" />
+      <created>1779813614348</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1779813614348</updated>
+    </task>
+    <task id="LOCAL-00010" summary="фурье">
+      <option name="closed" value="true" />
+      <created>1781104658368</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1781104658368</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VCPKGProject">
+    <isAutomaticCheckingOnLaunch value="false" />
+    <isAutomaticFoundErrors value="true" />
+    <isAutomaticReloadCMake value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="band1" />
+    <MESSAGE value="band2" />
+    <MESSAGE value="замедлелись" />
+    <MESSAGE value="УскорЕлисъ" />
+    <MESSAGE value="УсКоРеЛиСь" />
+    <MESSAGE value="скалярное произведение" />
+    <MESSAGE value="фурье" />
+    <option name="LAST_COMMIT_MESSAGE" value="фурье" />
+  </component>
+</project>
